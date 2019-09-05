@@ -1,8 +1,8 @@
-import boundstone
+import bstone
 
 fn main() {
     println('Starting Server...')
-    mut server := BoundstoneServer{
+    mut server := bstone.BoundstoneServer{
         port: 19132
         name: 'Server'
         number_of_players: 100

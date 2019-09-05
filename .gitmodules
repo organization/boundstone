@@ -1,0 +1,3 @@
+[submodule "RakLib"]
+	path = RakLib
+	url = https://github.com/organization/RakLib

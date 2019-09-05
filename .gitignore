@@ -1,3 +1,5 @@
 *.exe
 *.c
 *.o
+*.dSYM
+/boundstone
