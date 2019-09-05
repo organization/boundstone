@@ -1,6 +1,6 @@
 module bstone
 
-import RakLib
+import vraklib
 
 struct BoundstoneServer {
     port int
@@ -8,12 +8,12 @@ struct BoundstoneServer {
     name string
 
 mut:
-    server raklib.UdpSocket
+    server vraklib.UdpSocket
 } 
 
 pub fn (s mut BoundstoneServer) start() {
     println('Starting...')
 
-    sock := raklib.socket(s.port) or { panic(err) }
-    s.server = sock
+    //sock := vraklib.socket(s.port) or { panic(err) }
+    //s.server = sock
 }
