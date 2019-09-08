@@ -3,6 +3,5 @@
 *.o
 *.dSYM
 /boundstone
-/converttest
 /boundstone_test
 .vscode

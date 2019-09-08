@@ -1,4 +1,5 @@
 import bstone
+import readline
 
 fn main() {
     println('Starting Server...')
@@ -9,4 +10,15 @@ fn main() {
     }
     server.start()
     println('Server has been started')
+
+    mut rl := readline.Readline{}
+    rl.enable_raw_mode()
+    for {
+        line := rl.read_line('')
+        if line == 'exit\n' {
+            server.stop()
+            break
+        }
+    }
+    rl.disable_raw_mode()
 }
