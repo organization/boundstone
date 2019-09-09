@@ -15,7 +15,7 @@ fn main() {
     rl.enable_raw_mode()
     for {
         line := rl.read_line('')
-        if line == 'exit\n' {
+        if line == 'stop\n' {
             server.stop()
             break
         }
