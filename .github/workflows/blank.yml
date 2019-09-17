@@ -14,6 +14,6 @@ jobs:
     - name: Build V
       run: make -C v
     - name: Build boundstone
-      run: v boundstone.v
+      run: ./v/v boundstone.v
     - name: Run boundstone
       run: ./boundstone
