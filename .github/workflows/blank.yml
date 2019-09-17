@@ -9,12 +9,11 @@ jobs:
     
     steps:
     - uses: actions/checkout@v1
-    - name: Run a one-line script
-      run: echo Hello, world!
-    - name: Run a multi-line script
-      run: |
-        echo Add other actions to build,
-        echo test, and deploy your project.
-        git clone https://github.com/vlang/v
-        v/make
-        v run boundstone.v
+    - name: Clone V
+      run: git clone https://github.com/vlang/v
+    - name: Build V
+      run: make -C v
+    - name: Build boundstone
+      run: v boundstone.v
+    - name: Run boundstone
+      run: ./boundstone
