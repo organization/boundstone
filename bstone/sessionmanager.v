@@ -135,7 +135,7 @@ fn (s SessionManager) session_exists(address InternetAddress) bool {
 
 fn (s mut SessionManager) create_session(address InternetAddress, client_id u64, mtu_size i16) &Session {
     for {
-        if s.next_session_id in s.sessions {
+        if s.next_session_id.str() in s.sessions {
             s.next_session_id++
             s.next_session_id &= 0x7fffffff
         } else {

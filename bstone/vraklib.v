@@ -2,7 +2,7 @@ module bstone
 
 struct VRakLib {
 mut:
-    server Server
+    server &Server
 
     address InternetAddress
 
