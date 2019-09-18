@@ -11,7 +11,7 @@ mut:
 }
 
 fn (r mut Reply2Packet) encode() {
-    r.p.buffer.put_byte(OpenConnectionReply2)
+    r.p.buffer.put_byte(IdOpenConnectionReply2)
     r.p.buffer.put_bytes(get_packet_magic().data, RaknetMagicLength)
     r.p.buffer.put_long(r.server_id)
     r.p.buffer.put_ushort(r.rport)

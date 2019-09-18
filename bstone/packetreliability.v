@@ -1,14 +1,14 @@
 module bstone
 
 const (
-    Unreliable = 0x00
-    UnreliableSequenced = 0x01
-    Reliable = 0x02
-    ReliableOrdered = 0x03
-    ReliableSequenced = 0x04
-    UnreliableWithAckReceipt = 0x05
-    ReliableWithAckReceipt = 0x06
-    ReliableOrderedWithAckReceipt = 0x07
+    ReliabilityUnreliable = 0x00
+    ReliabilityUnreliableSequenced = 0x01
+    ReliabilityReliable = 0x02
+    ReliabilityReliableOrdered = 0x03
+    ReliabilityReliableSequenced = 0x04
+    ReliabilityUnreliableWithAckReceipt = 0x05
+    ReliabilityReliableWithAckReceipt = 0x06
+    ReliabilityReliableOrderedWithAckReceipt = 0x07
 )
 
 const (
@@ -17,26 +17,26 @@ const (
 )
 
 fn reliability_is_reliable(reliability byte) bool {
-    return reliability == Reliable ||
-        reliability == ReliableOrderedWithAckReceipt ||
-        reliability == ReliableSequenced ||
-        reliability == ReliableWithAckReceipt ||
-        reliability == ReliableOrderedWithAckReceipt
+    return reliability == ReliabilityReliable ||
+        reliability == ReliabilityReliableOrderedWithAckReceipt ||
+        reliability == ReliabilityReliableSequenced ||
+        reliability == ReliabilityReliableWithAckReceipt ||
+        reliability == ReliabilityReliableOrderedWithAckReceipt
 }
 
 fn reliability_is_sequenced(reliability byte) bool {
-    return reliability == UnreliableSequenced ||
-        reliability == ReliableSequenced
+    return reliability == ReliabilityUnreliableSequenced ||
+        reliability == ReliabilityReliableSequenced
 }
 
 fn reliability_is_ordered(reliability byte) bool {
-    return reliability == ReliableOrdered ||
-        reliability == ReliableOrderedWithAckReceipt
+    return reliability == ReliabilityReliableOrdered ||
+        reliability == ReliabilityReliableOrderedWithAckReceipt
 }
 
 fn reliability_is_sequenced_or_ordered(reliability byte) bool {
-    return reliability == UnreliableSequenced ||
-        reliability == ReliableOrdered ||
-        reliability == ReliableSequenced ||
-        reliability == ReliableOrderedWithAckReceipt
+    return reliability == ReliabilityUnreliableSequenced ||
+        reliability == ReliabilityReliableOrdered ||
+        reliability == ReliabilityReliableSequenced ||
+        reliability == ReliabilityReliableOrderedWithAckReceipt
 }

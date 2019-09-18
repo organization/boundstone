@@ -10,7 +10,7 @@ mut:
 }
 
 fn (u mut UnConnectedPongPacket) encode() {
-    u.p.buffer.put_byte(UnConnectedPing)
+    u.p.buffer.put_byte(IdUnConnectedPing)
     u.p.buffer.put_long(u.ping_id)
     u.p.buffer.put_long(u.server_id)
     u.p.buffer.put_bytes(get_packet_magic().data, RaknetMagicLength)

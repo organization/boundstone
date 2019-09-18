@@ -107,16 +107,15 @@ fn (s UdpSocket) receive() ?Packet {
 
     return Packet {
         buffer: new_bytebuffer(bytes, u32(res))
-        ip: tos(ip, 16)
-        port: addr.sin_port
+        address: InternetAddress { ip: tos(ip, 16), port: u16(addr.sin_port), version: byte(4) }
     }
 }
 
 fn (s UdpSocket) send(packet DataPacketHandler, p Packet) ?int {
     mut addr := C.sockaddr_in{}
     addr.sin_family = C.AF_INET
-    addr.sin_port = p.port
-    C.inet_pton(C.AF_INET, p.ip.str, &addr.sin_addr)
+    addr.sin_port = int(p.address.port)
+    C.inet_pton(C.AF_INET, p.address.ip.str, &addr.sin_addr)
 
     buffer := p.buffer.buffer
     length := p.buffer.length

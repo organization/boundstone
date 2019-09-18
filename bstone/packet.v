@@ -20,15 +20,13 @@ struct Packet {
 mut:
     buffer ByteBuffer
 
-    ip string
-    port int
+    address InternetAddress
 }
 
 fn new_packet_from_packet(packet Packet) Packet {
     return Packet {
         buffer: new_bytebuffer(packet.buffer.buffer, packet.buffer.length)
-        ip: packet.ip
-        port: packet.port
+        address: packet.address
     }
 }
 
@@ -85,7 +83,7 @@ fn encapsulated_packet_from_binary(p Packet) []EncapsulatedPacket {
 
         length := math.ceil(f32(packet.buffer.get_ushort()) / f32(8))
 
-        if internal_packet.reliability > Unreliable {
+        if internal_packet.reliability > ReliabilityUnreliable {
             if reliability_is_reliable(internal_packet.reliability) {
                 internal_packet.message_index = packet.buffer.get_ltriad()
             }
@@ -113,18 +111,18 @@ fn (p EncapsulatedPacket) to_binary() Packet {
     packet.buffer.put_byte(byte(p.reliability << 5 | (if p.has_split { 0x01 } else { 0x00 })))
     packet.buffer.put_ushort(u16(p.length << u16(3)))
 
-    if p.reliability == Reliable ||
-        p.reliability == ReliableOrdered ||
-        p.reliability == ReliableSequenced ||
-        p.reliability == ReliableWithAckReceipt ||
-        p.reliability == ReliableOrderedWithAckReceipt {
+    if p.reliability == ReliabilityReliable ||
+        p.reliability == ReliabilityReliableOrdered ||
+        p.reliability == ReliabilityReliableSequenced ||
+        p.reliability == ReliabilityReliableWithAckReceipt ||
+        p.reliability == ReliabilityReliableOrderedWithAckReceipt {
             packet.buffer.put_ltriad(p.message_index)
     }
 
-    if p.reliability == UnreliableSequenced ||
-        p.reliability == ReliableOrdered ||
-        p.reliability == ReliableSequenced ||
-        p.reliability == ReliableOrderedWithAckReceipt {
+    if p.reliability == ReliabilityUnreliableSequenced ||
+        p.reliability == ReliabilityReliableOrdered ||
+        p.reliability == ReliabilityReliableSequenced ||
+        p.reliability == ReliabilityReliableOrderedWithAckReceipt {
         packet.buffer.put_ltriad(p.order_index)
         packet.buffer.put_byte(p.order_channel)
     }

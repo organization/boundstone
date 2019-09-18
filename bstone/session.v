@@ -39,8 +39,8 @@ mut:
 
     state State // connecting
 
-    mtu_size int
-    id int
+    mtu_size i16
+    id u64
     splid_id int // 0
     
     send_seq_number u32 // 0
@@ -73,10 +73,30 @@ mut:
 
     reliable_window map[string]bool
 
-    last_ping_time int // -1
+    last_ping_time f32 // -1
     last_ping_measure int // 1
 
     internal_id int
+}
+
+fn new_session(session_manager SessionManager, address InternetAddress, client_id u64, mtu_size i16, internal_id int) Session {
+    session := Session {
+        send_ordered_index: [0].repeat(ChannelCount)
+        send_sequenced_index: [0].repeat(ChannelCount)
+
+        receive_ordered_index: [0].repeat(ChannelCount)
+        receive_sequenced_highest_index: [0].repeat(ChannelCount)
+
+        receive_ordered_packets: [[]EncapsulatedPacket].repeat(ChannelCount)
+
+        session_manager: session_manager
+        address: address
+        mtu_size: mtu_size
+        id: client_id
+
+        internal_id: internal_id
+    }
+    return session
 }
 
 fn (s mut Session) update() {
@@ -123,6 +143,12 @@ fn (s Session) send_datagram(datagram Datagram) {
 
 fn (s Session) send_packet(packet DataPacketHandler, p Packet) {
     s.session_manager.send_packet(packet, p)
+}
+
+fn (s Session) send_ping(reliability int) {
+    //packet := ConnectedPing {}
+    //packet.send_ping_time = s.session_manager.get_raknet_time_ms()
+    //s.queue_connected_packet(packet.p, reliability, 0, PriorityImmediate)
 }
 
 fn (s mut Session) send_queue() {
@@ -243,16 +269,15 @@ fn (s mut Session) handle_packet(packet Datagram) {
     }
 }
 
-// max split size = 128
 fn (s mut Session) handle_split(packet EncapsulatedPacket) ?EncapsulatedPacket {
-    if packet.split_count >= 128 ||
-        packet.split_index >= 128 ||
+    if packet.split_count >= MaxSplitSize ||
+        packet.split_index >= MaxSplitSize ||
         packet.split_index < 0 {
             return error('Invalid split packet part')
     }
 
     if !(packet.split_id.str() in s.split_packets) {
-        if s.split_packets.size >= 128 {
+        if s.split_packets.size >= MaxSplitSize {
             return error('Invalid split packet part')
         }
         mut tmp := TmpMapEncapsulatedPacket{}
@@ -317,9 +342,8 @@ fn (s mut Session) handle_encapsulated_packet(packet EncapsulatedPacket) {
         p = pp
     }
 
-    // channel count = 32
     if reliability_is_sequenced_or_ordered(packet.reliability) &&
-        (packet.order_channel < 0 || packet.order_channel >= 32) {
+        (packet.order_channel < 0 || packet.order_channel >= ChannelCount) {
             // Invalid packet
             return
     }
@@ -366,34 +390,40 @@ fn (s mut Session) handle_encapsulated_packet(packet EncapsulatedPacket) {
 fn (s mut Session) handle_encapsulated_packet_route(packet EncapsulatedPacket) {
     pid := packet.buffer[0]
 
-    if pid < UserPacketEnum {
-        if pid == ConnectionRequest {
-            mut connection := ConnectionRequestPacket { p: new_packet(packet.buffer, u32(packet.length)) }
-            connection.decode()
+    if pid < IdUserPacketEnum {
+        if s.state == .connecting {
+            if pid == IdConnectionRequest {
+                mut connection := ConnectionRequestPacket { p: new_packet(packet.buffer, u32(packet.length)) }
+                connection.decode()
 
-            mut accepted := ConnectionRequestAcceptedPacket {
-                p: new_packet([byte(0)].repeat(96).data, u32(96))
-                ping_time: connection.ping_time
-                pong_time: s.session_manager.get_raknet_time_ms()
+                mut accepted := ConnectionRequestAcceptedPacket {
+                    p: new_packet([byte(0)].repeat(96).data, u32(96))
+                    ping_time: connection.ping_time
+                    pong_time: s.session_manager.get_raknet_time_ms()
+                }
+                accepted.encode()
+                accepted.p.address = connection.p.address
+
+                s.queue_connected_packet(accepted.p, ReliabilityUnreliable, 0, PriorityImmediate)
+            } else if pid == IdNewIncomingConnection {
+                /*mut connection := NewIncomingConnectionPacket { p: new_packet(packet.buffer, u32(packet.length)) }
+                connection.decode()
+
+                if connection.address.port == u16(19132) || !s.session_manager.port_checking {
+                    s.state = .connected
+                    s.is_temporal = false
+                    s.session_manager.open_session(s)
+                    s.send_ping(ReliabilityUnreliable)
+                }*/
             }
-            accepted.encode()
-            accepted.p.ip = connection.p.ip
-            accepted.p.port = connection.p.port
+        } else if pid == IdConnectedPing {
 
-            s.queue_connected_packet(accepted.p, Unreliable, 0, PriorityImmediate)
+        } else if pid == IdConnectedPong {
+
         }
-        else if pid == NewIncomingConnection {
-            mut connection := NewIncomingConnectionPacket { p: new_packet(packet.buffer, u32(packet.length)) }
-            // connection.decode();
-
-            // if connection.address.port == s.session_manager.get_port() || s.session_manager.port_checking() {
-            //     s.state = .connected
-            //     s.is_temporal = false
-            //     s.session_manager.open
-                
-            //     }
-
-            // }
-        }
+    } else if s.state == .connected {
+        s.session_manager.handle_encapsulated(s, packet)
+    } else {
+        // Received packet before connection
     }
 }
