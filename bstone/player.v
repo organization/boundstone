@@ -4,6 +4,6 @@ struct Player {
 
 }
 
-fn (p Player) handle_packet(packet vraklib.Packet) {
+fn (p Player) handle_packet(packet Packet) {
     
 }
