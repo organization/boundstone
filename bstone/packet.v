@@ -79,7 +79,7 @@ mut:
     p Packet
 
     packet_id byte
-    sequence_number u32
+    sequence_number int
     packets []EncapsulatedPacket
 }
 
@@ -114,16 +114,16 @@ fn encapsulated_packet_from_binary(p Packet) []EncapsulatedPacket {
         }
         internal_packet.buffer = packet.buffer.get_bytes(int(length))
         packets << internal_packet
-        println('length: ${internal_packet.length}')
-        println('reliability: ${internal_packet.reliability}')
-        println('has_split: ${internal_packet.has_split}')
-        println('message_index: ${internal_packet.message_index}')
-        println('sequence_index: ${internal_packet.sequence_index}')
-        println('order_index: ${internal_packet.order_index}')
-        println('order_channel: ${internal_packet.order_channel}')
-        println('split_count: ${internal_packet.split_count}')
-        println('split_id: ${internal_packet.split_id}')
-        println('split_index: ${internal_packet.split_index}')
+        // println('length: ${internal_packet.length}')
+        // println('reliability: ${internal_packet.reliability}')
+        // println('has_split: ${internal_packet.has_split}')
+        // println('message_index: ${internal_packet.message_index}')
+        // println('sequence_index: ${internal_packet.sequence_index}')
+        // println('order_index: ${internal_packet.order_index}')
+        // println('order_channel: ${internal_packet.order_channel}')
+        // println('split_count: ${internal_packet.split_count}')
+        // println('split_id: ${internal_packet.split_id}')
+        // println('split_index: ${internal_packet.split_index}')
     }
     return packets
 }
@@ -171,7 +171,7 @@ fn (c Datagram) get_total_length() u32 {
 
 fn (c mut Datagram) decode() {
     c.packet_id = c.p.buffer.get_byte()
-    c.sequence_number = u32(c.p.buffer.get_ltriad())
+    c.sequence_number = c.p.buffer.get_ltriad()
     c.packets = encapsulated_packet_from_binary(c.p)
 }
 
@@ -180,7 +180,7 @@ fn (c mut Datagram) encode() {
     c.p.buffer.buffer = [byte(0)].repeat(int(c.get_total_length())).data
 
     c.p.buffer.put_byte(byte(BitflagValid) | c.packet_id)
-    c.p.buffer.put_ltriad(int(c.sequence_number))
+    c.p.buffer.put_ltriad(c.sequence_number)
     for internal_packet in c.packets {
         packet := internal_packet.to_binary()
         c.p.buffer.put_bytes(packet.buffer.buffer, int(packet.buffer.length))

@@ -21,6 +21,11 @@ mut:
     m map[string]EncapsulatedPacket
 }
 
+struct TmpMapInt {
+mut:
+    m map[string]int
+}
+
 struct Session {
 mut:
     message_index int
@@ -56,11 +61,11 @@ mut:
     ack_queue map[string]u32
     nack_queue map[string]u32
 
-    // recovery_queue map
+    recovery_queue map[string]Datagram
 
     split_packets map[string]TmpMapEncapsulatedPacket
 
-    need_ack [][]int
+    need_ack map[string]TmpMapInt
 
     send_queue_data Datagram
 
@@ -95,6 +100,8 @@ fn new_session(session_manager SessionManager, address InternetAddress, client_i
         mtu_size: mtu_size
         id: client_id
 
+        send_queue_data: Datagram { sequence_number: -1 }
+
         internal_id: internal_id
     }
     return session
@@ -102,7 +109,7 @@ fn new_session(session_manager SessionManager, address InternetAddress, client_i
 
 fn (s mut Session) update() {
     diff := s.highest_seq_number - s.window_start + u32(1)
-    //assert diff >= u32(0)
+    assert diff >= u32(0)
 
     if diff > u32(0) {
         s.window_start += diff
@@ -119,9 +126,9 @@ fn (s mut Session) update() {
         //s.nack_queue = map[string]int{}
     }
 
-    if s.need_ack.len > 0 {
+    if s.need_ack.size > 0 {
         for i, ack in s.need_ack {
-            if ack.len == 0 {
+            if ack.m.size == 0 {
                 s.need_ack[i]
                 //s.session_manager.notify_ack(s, i)
             }
@@ -131,19 +138,22 @@ fn (s mut Session) update() {
     s.send_queue()
 }
 
-fn (s Session) send_datagram(datagram Datagram) {
+fn (s mut Session) send_datagram(datagram Datagram) {
     mut d := datagram
 
-    if datagram.sequence_number != u32(-1) {
-        //s.recovery_queue.delete(datagram.seq_number.str())
+    if datagram.sequence_number != -1 {
+        s.recovery_queue.delete(datagram.sequence_number.str())
     }
-    d.sequence_number = s.send_seq_number
+    d.sequence_number = int(s.send_seq_number)
     s.send_seq_number++
+    s.recovery_queue[d.sequence_number.str()] = datagram
     s.send_packet(d, d.p)
 }
 
 fn (s Session) send_packet(packet DataPacketHandler, p Packet) {
-    s.session_manager.send_packet(packet, p)
+    mut pp := p
+    pp.address = s.address
+    s.session_manager.send_packet(packet, pp)
 }
 
 fn (s Session) send_ping(reliability int) {
@@ -155,7 +165,7 @@ fn (s Session) send_ping(reliability int) {
 fn (s mut Session) send_queue() {
     if s.send_queue_data.packets.len > 0 {
         s.send_datagram(s.send_queue_data)
-        s.send_queue_data = Datagram {}
+        s.send_queue_data = Datagram { sequence_number: -1 }
     }
 }
 
@@ -173,20 +183,20 @@ fn (s mut Session) add_to_queue(packet EncapsulatedPacket, flags byte) {
     mut p := packet
     priority := flags & 0x07
     if p.need_ack && p.message_index != -1 {
-        mut arr := s.need_ack[p.identifier_ack]
-        arr[p.message_index] = p.message_index
+        mut arr := s.need_ack[p.identifier_ack.str()]
+        arr.m[p.message_index.str()] = p.message_index
     }
 
     length := s.send_queue_data.get_total_length()
-    //if length + p.get_length() > s.mtu_size - 36 {
-        //s.send_queue()
-    //}
+    if u32(length) + p.get_length() > u32(s.mtu_size - u16(36)) {
+        s.send_queue()
+    }
 
     if p.need_ack {
         s.send_queue_data.packets << p
         p.need_ack = false
     } else {
-        //s.send_queue_data.packets << p.to_binary()
+        s.send_queue_data.packets << p
     }
 
     if priority == PriorityImmediate {
@@ -197,10 +207,10 @@ fn (s mut Session) add_to_queue(packet EncapsulatedPacket, flags byte) {
 fn (s mut Session) add_encapsulated_to_queue(packet EncapsulatedPacket, flags byte) {
     mut p := packet
     p.need_ack = (flags & 0x09) != 0
-    println(p.need_ack)
-    //if p.need_ack {
-    //    s.need_ack[p.identifier_ack] = map[string]int
-    //}
+
+    if p.need_ack {
+        s.need_ack[p.identifier_ack.str()] = TmpMapInt {}
+    }
 
     if reliability_is_ordered(p.reliability) {
         p.order_index = s.send_ordered_index[p.order_channel]
@@ -261,8 +271,8 @@ fn (s mut Session) handle_packet(packet Datagram) {
     mut p := packet
     p.decode()
 
-    if p.sequence_number < s.window_start ||
-        p.sequence_number > s.window_end ||
+    if u32(p.sequence_number) < s.window_start ||
+        u32(p.sequence_number) > s.window_end ||
         p.sequence_number.str() in s.ack_queue {
             // Received duplicate or out-of-window packet
             return
@@ -271,13 +281,13 @@ fn (s mut Session) handle_packet(packet Datagram) {
     if p.sequence_number.str() in s.nack_queue {
        s.nack_queue.delete(p.sequence_number.str())
     }
-    s.ack_queue[p.sequence_number.str()] = p.sequence_number
+    s.ack_queue[p.sequence_number.str()] = u32(p.sequence_number)
 
-    if s.highest_seq_number < p.sequence_number {
-        s.highest_seq_number = p.sequence_number
+    if s.highest_seq_number < u32(p.sequence_number) {
+        s.highest_seq_number = u32(p.sequence_number)
     }
 
-    if p.sequence_number == s.window_start {
+    if u32(p.sequence_number) == s.window_start {
         for {
             if s.window_start.str() in s.ack_queue {
                 s.window_end++
@@ -286,9 +296,9 @@ fn (s mut Session) handle_packet(packet Datagram) {
                 break
             }
         }
-    } else if p.sequence_number > s.window_start {
+    } else if u32(p.sequence_number) > s.window_start {
         mut i := s.window_start
-        for i < p.sequence_number {
+        for i < u32(p.sequence_number) {
             if !(i.str() in s.ack_queue) {
                 s.nack_queue[i.str()] = i
             }
@@ -434,7 +444,7 @@ fn (s mut Session) handle_encapsulated_packet_route(packet EncapsulatedPacket) {
                 mut accepted := ConnectionRequestAccepted {
                     p: new_packet([byte(0)].repeat(96).data, u32(96))
                     ping_time: connection.ping_time
-                    pong_time: s.session_manager.get_raknet_time_ms()
+                    pong_time: s.session_manager.get_raknet_time_ms() // TODO
                 }
                 accepted.encode()
                 accepted.p.address = connection.p.address
@@ -449,8 +459,8 @@ fn (s mut Session) handle_encapsulated_packet_route(packet EncapsulatedPacket) {
                     s.is_temporal = false
                     //s.session_manager.open_session(s)
                     //s.send_ping(ReliabilityUnreliable)
-                    println('NEW INCOMING CONNECTION')
                 }
+                println('NEW INCOMING CONNECTION')
             }
         } else if pid == IdConnectedPing {
 
