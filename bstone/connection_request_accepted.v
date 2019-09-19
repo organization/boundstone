@@ -1,6 +1,6 @@
 module bstone
 
-struct ConnectionRequestAcceptedPacket {
+struct ConnectionRequestAccepted {
 mut:
     p Packet
 
@@ -8,19 +8,19 @@ mut:
     pong_time i64
 }
 
-fn (r mut ConnectionRequestAcceptedPacket) encode() {
+fn (r mut ConnectionRequestAccepted) encode() {
     r.p.buffer.put_byte(IdConnectionRequestAccepted)
-    put_address(mut r.p.buffer, r.p.address)
+    r.p.put_address(r.p.address)
     r.p.buffer.put_short(i16(0))
 
-    put_address(mut r.p.buffer, InternetAddress { ip: '127.0.0.1', port: u16(0), version: 4 })
+    r.p.put_address(InternetAddress { ip: '127.0.0.1', port: u16(0), version: 4 })
     mut i := 0
     for i < 9 {
-        put_address(mut r.p.buffer, InternetAddress { ip: '0.0.0.0', port: u16(0), version: 4 })
+        r.p.put_address(InternetAddress { ip: '0.0.0.0', port: u16(0), version: 4 })
         i++
     }
     r.p.buffer.put_long(r.ping_time)
     r.p.buffer.put_long(r.pong_time)
 }
 
-fn (r mut ConnectionRequestAcceptedPacket) decode() {}
+fn (r mut ConnectionRequestAccepted) decode() {}

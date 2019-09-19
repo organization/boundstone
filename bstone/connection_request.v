@@ -1,6 +1,6 @@
 module bstone
 
-struct ConnectionRequestPacket {
+struct ConnectionRequest {
 mut:
     p Packet
 
@@ -9,9 +9,9 @@ mut:
     use_security bool
 }
 
-fn (r mut ConnectionRequestPacket) encode() {}
+fn (r mut ConnectionRequest) encode() {}
 
-fn (r mut ConnectionRequestPacket) decode() {
+fn (r mut ConnectionRequest) decode() {
     r.p.buffer.get_byte()
     r.client_id = r.p.buffer.get_long()
     r.ping_time = r.p.buffer.get_long()

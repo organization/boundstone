@@ -46,6 +46,17 @@ fn get_packet_magic() []byte {
     return [ byte(0x00), 0xff, 0xff, 0x00, 0xfe, 0xfe, 0xfe, 0xfe, 0xfd, 0xfd, 0xfd, 0xfd, 0x12, 0x34, 0x56, 0x78 ]
 }
 
+fn (p mut Packet) put_address(address InternetAddress) {
+    p.buffer.put_byte(address.version)
+    if address.version == 4 {
+        numbers := address.ip.split('.')
+        for num in numbers {
+            p.buffer.put_char(i8(~num.int() & 0xFF))
+        }
+        p.buffer.put_ushort(u16(address.port))
+    }
+}
+
 struct EncapsulatedPacket {
 mut:
     buffer byteptr
@@ -76,12 +87,13 @@ fn encapsulated_packet_from_binary(p Packet) []EncapsulatedPacket {
     mut packets := []EncapsulatedPacket
     mut packet := p
     for packet.buffer.position < packet.buffer.length {
-        mut internal_packet := EncapsulatedPacket{}
+        mut internal_packet := EncapsulatedPacket {}
         flags := packet.buffer.get_byte()
         internal_packet.reliability = (flags & 0xE0) >> 5
         internal_packet.has_split = (flags & 0x10) > 0
 
         length := math.ceil(f32(packet.buffer.get_ushort()) / f32(8))
+        internal_packet.length = u16(length)
 
         if internal_packet.reliability > ReliabilityUnreliable {
             if reliability_is_reliable(internal_packet.reliability) {
@@ -102,6 +114,16 @@ fn encapsulated_packet_from_binary(p Packet) []EncapsulatedPacket {
         }
         internal_packet.buffer = packet.buffer.get_bytes(int(length))
         packets << internal_packet
+        println('length: ${internal_packet.length}')
+        println('reliability: ${internal_packet.reliability}')
+        println('has_split: ${internal_packet.has_split}')
+        println('message_index: ${internal_packet.message_index}')
+        println('sequence_index: ${internal_packet.sequence_index}')
+        println('order_index: ${internal_packet.order_index}')
+        println('order_channel: ${internal_packet.order_channel}')
+        println('split_count: ${internal_packet.split_count}')
+        println('split_id: ${internal_packet.split_id}')
+        println('split_index: ${internal_packet.split_index}')
     }
     return packets
 }
@@ -111,18 +133,14 @@ fn (p EncapsulatedPacket) to_binary() Packet {
     packet.buffer.put_byte(byte(p.reliability << 5 | (if p.has_split { 0x01 } else { 0x00 })))
     packet.buffer.put_ushort(u16(p.length << u16(3)))
 
-    if p.reliability == ReliabilityReliable ||
-        p.reliability == ReliabilityReliableOrdered ||
-        p.reliability == ReliabilityReliableSequenced ||
-        p.reliability == ReliabilityReliableWithAckReceipt ||
-        p.reliability == ReliabilityReliableOrderedWithAckReceipt {
-            packet.buffer.put_ltriad(p.message_index)
+    if reliability_is_reliable(p.reliability) {
+        packet.buffer.put_ltriad(p.message_index)
     }
 
-    if p.reliability == ReliabilityUnreliableSequenced ||
-        p.reliability == ReliabilityReliableOrdered ||
-        p.reliability == ReliabilityReliableSequenced ||
-        p.reliability == ReliabilityReliableOrderedWithAckReceipt {
+    if reliability_is_sequenced(p.reliability) {
+        packet.buffer.put_ltriad(p.order_index)
+    }
+    if reliability_is_sequenced_or_ordered(p.reliability) {
         packet.buffer.put_ltriad(p.order_index)
         packet.buffer.put_byte(p.order_channel)
     }

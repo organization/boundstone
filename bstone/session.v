@@ -39,9 +39,9 @@ mut:
 
     state State // connecting
 
-    mtu_size i16
+    mtu_size u16
     id u64
-    splid_id int // 0
+    split_id int // 0
     
     send_seq_number u32 // 0
 
@@ -79,7 +79,8 @@ mut:
     internal_id int
 }
 
-fn new_session(session_manager SessionManager, address InternetAddress, client_id u64, mtu_size i16, internal_id int) Session {
+fn new_session(session_manager SessionManager, address InternetAddress, client_id u64, mtu_size u16, internal_id int) Session {
+    println('$address.ip, $address.port, $client_id, $mtu_size, $internal_id')
     session := Session {
         send_ordered_index: [0].repeat(ChannelCount)
         send_sequenced_index: [0].repeat(ChannelCount)
@@ -210,16 +211,50 @@ fn (s mut Session) add_encapsulated_to_queue(packet EncapsulatedPacket, flags by
         s.send_sequenced_index[p.order_channel] += 1
     }
 
-    //max_size := mtu_size
-    //if packet.length > max_size {
+    max_size := u16(s.mtu_size) - u16(60)
+    if p.length > max_size {
+        mut buffers := []byte{}
+        packet_buffers := tos(p.buffer, int(p.length))
 
-    //} else if {
+        mut buffer_count := 0
+        mut offset := u16(0)
+        for offset < p.length {
+            if offset + max_size > p.length {
+                buffers << packet_buffers.substr(int(offset), packet_buffers.len - 1).bytes()
+            } else {
+                buffers << packet_buffers.substr(int(offset), int(offset + max_size)).bytes()
+            }
+            offset += max_size
+            buffer_count++
+        }
+
+        split_id := s.split_id % 65536
+        for count, buffer in buffers {
+            mut encapsulated_packet := EncapsulatedPacket {}
+            encapsulated_packet.split_id = u16(split_id)
+            encapsulated_packet.has_split = true
+            encapsulated_packet.split_count = buffer_count
+            encapsulated_packet.reliability = p.reliability
+            encapsulated_packet.split_index = count
+            encapsulated_packet.buffer = buffer
+
+            if reliability_is_reliable(p.reliability) {
+                encapsulated_packet.message_index = s.message_index
+                s.message_index++
+            }
+
+            encapsulated_packet.sequence_index = p.sequence_index
+            encapsulated_packet.order_channel = p.order_channel
+            encapsulated_packet.order_index = p.order_index
+            s.add_to_queue(encapsulated_packet, flags | PriorityImmediate)
+        }
+    } else {
         if reliability_is_reliable(p.reliability) {
             p.message_index = s.message_index
             s.message_index++
         }
         s.add_to_queue(p, flags)
-    //}
+    }
 }
 
 fn (s mut Session) handle_packet(packet Datagram) {
@@ -393,10 +428,10 @@ fn (s mut Session) handle_encapsulated_packet_route(packet EncapsulatedPacket) {
     if pid < IdUserPacketEnum {
         if s.state == .connecting {
             if pid == IdConnectionRequest {
-                mut connection := ConnectionRequestPacket { p: new_packet(packet.buffer, u32(packet.length)) }
+                mut connection := ConnectionRequest { p: new_packet(packet.buffer, u32(packet.length)) }
                 connection.decode()
 
-                mut accepted := ConnectionRequestAcceptedPacket {
+                mut accepted := ConnectionRequestAccepted {
                     p: new_packet([byte(0)].repeat(96).data, u32(96))
                     ping_time: connection.ping_time
                     pong_time: s.session_manager.get_raknet_time_ms()
@@ -406,15 +441,16 @@ fn (s mut Session) handle_encapsulated_packet_route(packet EncapsulatedPacket) {
 
                 s.queue_connected_packet(accepted.p, ReliabilityUnreliable, 0, PriorityImmediate)
             } else if pid == IdNewIncomingConnection {
-                /*mut connection := NewIncomingConnectionPacket { p: new_packet(packet.buffer, u32(packet.length)) }
+                mut connection := NewIncomingConnection { p: new_packet(packet.buffer, u32(packet.length)) }
                 connection.decode()
 
                 if connection.address.port == u16(19132) || !s.session_manager.port_checking {
                     s.state = .connected
                     s.is_temporal = false
-                    s.session_manager.open_session(s)
-                    s.send_ping(ReliabilityUnreliable)
-                }*/
+                    //s.session_manager.open_session(s)
+                    //s.send_ping(ReliabilityUnreliable)
+                    println('NEW INCOMING CONNECTION')
+                }
             }
         } else if pid == IdConnectedPing {
 

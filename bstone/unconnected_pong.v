@@ -1,6 +1,6 @@
 module bstone
 
-struct UnConnectedPongPacket {
+struct UnConnectedPong {
 mut:
     p Packet
 
@@ -9,12 +9,12 @@ mut:
     str string
 }
 
-fn (u mut UnConnectedPongPacket) encode() {
-    u.p.buffer.put_byte(IdUnConnectedPing)
+fn (u mut UnConnectedPong) encode() {
+    u.p.buffer.put_byte(IdUnConnectedPong)
     u.p.buffer.put_long(u.ping_id)
     u.p.buffer.put_long(u.server_id)
     u.p.buffer.put_bytes(get_packet_magic().data, RaknetMagicLength)
     u.p.buffer.put_string(u.str)
 }
 
-fn (u UnConnectedPongPacket) decode() {}
+fn (u UnConnectedPong) decode() {}

@@ -123,3 +123,15 @@ fn test_array() {
     println(maptest['1'].m.keys())
     println(maptest['1'].m['2'])
 }
+
+fn test_bytearray() {
+    test := [byte(1), 2, 3, 4, 5, 6, 7, 8, 9]
+    println(test.len)
+
+    str := tos(test.data, 5)
+    println(str.len)
+    substr := str.substr(1, 4)
+    println(substr.len)
+    bytes := substr.bytes()
+    println(bytes.hex())
+}

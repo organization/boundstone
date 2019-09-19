@@ -2,8 +2,8 @@ module bstone
 
 const (
     IdConnectedPing = 0x00
-    IdUnConnectedPong = 0x01
-    IdUnConnectedPong2 = 0x03
+    IdUnConnectedPing = 0x01
+    IdUnConnectedPingOpenConnections = 0x02
     IdConnectedPong = 0x03
 
     IdOpenConnectionRequest1 = 0x05
@@ -17,7 +17,7 @@ const (
     IdNewIncomingConnection = 0x13
     IdIncompatibleProtocolVersion = 0x19
 
-    IdUnConnectedPing = 0x1c
+    IdUnConnectedPong = 0x1c
 
     IdUserPacketEnum = 0x86
 )

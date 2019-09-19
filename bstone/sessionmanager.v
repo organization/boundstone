@@ -62,13 +62,13 @@ fn (s mut SessionManager) receive_packet() {
             }
         }
     } else {
-        if pid == IdUnConnectedPong || pid == IdUnConnectedPong2 {
-            mut ping := UnConnectedPingPacket { p: new_packet_from_packet(packet) }
+        if pid == IdUnConnectedPing {
+            mut ping := UnConnectedPing { p: new_packet_from_packet(packet) }
             ping.decode()
 
             title := 'MCPE;Minecraft V Server!;361;1.12.0;0;100;123456789;Test;Survival;'
             len := 35 + title.len
-            mut pong := UnConnectedPongPacket {
+            mut pong := UnConnectedPong {
                 p: new_packet([byte(0)].repeat(len).data, u32(len))
                 server_id: 123456789
                 ping_id: ping.ping_id
@@ -79,11 +79,11 @@ fn (s mut SessionManager) receive_packet() {
 
             s.socket.send(pong, pong.p)
         } else if pid == IdOpenConnectionRequest1 {
-            mut request := Request1Packet { p: new_packet_from_packet(packet) }
+            mut request := OpenConnectionRequest1 { p: new_packet_from_packet(packet) }
             request.decode()
             
             if request.version != 9 {
-                mut incompatible := IncompatibleProtocolVersionPacket {
+                mut incompatible := IncompatibleProtocolVersion {
                     p: new_packet([byte(0)].repeat(26).data, u32(26))
                     version: 9
                     server_id: 123456789
@@ -95,26 +95,31 @@ fn (s mut SessionManager) receive_packet() {
                 return
             }
 
-            mut reply := Reply1Packet {
+            mut reply := OpenConnectionReply1 {
                 p: new_packet([byte(0)].repeat(28).data, u32(28))
-                security: true
+                security: false
                 server_id: 123456789
-                mtu_size: request.mtu_size
+                mtu_size: request.mtu_size + u16(28)
             }
             reply.encode()
             reply.p.address = request.p.address
 
             s.socket.send(reply, reply.p)
         } else if pid == IdOpenConnectionRequest2 {
-            mut request := Request2Packet { p: new_packet_from_packet(packet) }
+            mut request := OpenConnectionRequest2 { p: new_packet_from_packet(packet) }
             request.decode()
 
-            mut reply := Reply2Packet {
-                p: new_packet([byte(0)].repeat(30).data, u32(30))
+            if request.mtu_size < u16(MinMtuSize) {
+                println('Not creating session for ${packet.address.ip} due to bad MTU size ${request.mtu_size}')
+                return
+            }
+
+            mut reply := OpenConnectionReply2 {
+                p: new_packet([byte(0)].repeat(35).data, u32(35))
                 server_id: 123456789
-                rport: request.rport
+                client_address: request.p.address
                 mtu_size: request.mtu_size
-                security: request.security
+                security: false
             }
             reply.encode()
             reply.p.address = request.p.address
@@ -133,7 +138,7 @@ fn (s SessionManager) session_exists(address InternetAddress) bool {
     return '$address.ip:${address.port.str()}' in s.session_by_address
 }
 
-fn (s mut SessionManager) create_session(address InternetAddress, client_id u64, mtu_size i16) &Session {
+fn (s mut SessionManager) create_session(address InternetAddress, client_id u64, mtu_size u16) &Session {
     for {
         if s.next_session_id.str() in s.sessions {
             s.next_session_id++

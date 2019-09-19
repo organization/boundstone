@@ -1,6 +1,6 @@
 module bstone
 
-struct NewIncomingConnectionPacket {
+struct NewIncomingConnection {
 mut:
     p Packet
 
@@ -10,6 +10,6 @@ mut:
     pong_time i64
 }
 
-fn (r mut NewIncomingConnectionPacket) decode() {
+fn (r mut NewIncomingConnection) decode() {
     
 }
