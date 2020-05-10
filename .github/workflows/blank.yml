@@ -3,28 +3,20 @@ name: CI
 on: [push]
 
 jobs:
-  build_from_latest_v_release:
-
-    runs-on: ubuntu-latest
-    
+  builde:
+    name: Build using V ${{ matrix.v_version }}
+    runs-on: 
+      - ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest]
+        v_version: [master, latest]
     steps:
     - uses: actions/checkout@v1
     - uses: nocturlab/setup-vlang-action@v1
       with:
-        v-version: latest
-    - name: Build boundstone
-      run: v boundstone.v
-    - name: Run boundstone
-      run: ./boundstone
-      
-  build_from_master_v_branch:
-    runs-on: ubuntu-latest
-    
-    steps:
-    - uses: actions/checkout@v1
-    - uses: nocturlab/setup-vlang-action@v1
-      with:
-        v-version: master
+        v-version: ${{ matrix.v_version }}
     - name: Build boundstone
       run: v boundstone.v
     - name: Run boundstone
