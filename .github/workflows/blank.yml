@@ -9,11 +9,11 @@ jobs:
     
     steps:
     - uses: actions/checkout@v1
-    - name: Clone V
-      run: git clone https://github.com/vlang/v
-    - name: Build V
-      run: make -C v
+    - name: Set up V version 0.1.24
+      uses: nocturlab/setup-vlang-action@v1
+      with:
+        v-version: master
     - name: Build boundstone
-      run: ./v/v boundstone.v
+      run: v boundstone.v
     - name: Run boundstone
       run: ./boundstone
